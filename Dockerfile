@@ -1,7 +1,11 @@
-FROM python:3.8-slim
+FROM python:3.10.13-slim-bullseye
 WORKDIR /usr/src/app
+
+COPY Pipfile Pipfile.lock ./
+RUN pip install --no-cache-dir pipenv && \
+    pipenv install --deploy --ignore-pipfile
+
 COPY . .
-RUN pip install --no-cache-dir -r requirements.txt
+
 EXPOSE 5000
-ENV NAME World
-CMD ["python", "./app/app.py"]
+CMD ["pipenv", "run", "python", "./app/app.py"]
