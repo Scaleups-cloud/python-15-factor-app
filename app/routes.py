@@ -1,58 +1,58 @@
-from flask import request, jsonify, Blueprint
+from flask_restx import Namespace, Resource, fields
 from .models import db, Book
-from flask import abort
 
-bp = Blueprint('bp', __name__, url_prefix='/api')
+api = Namespace('books', description='Books operations')
 
-@bp.route('/books', methods=['POST'])
-def add_book():
-    data = request.get_json()
-    new_book = Book(
-        title=data['title'],
-        author=data['author'],
-        year_published=data.get('year_published'),
-        isbn=data['isbn']
-    )
-    db.session.add(new_book)
-    db.session.commit()
-    return jsonify({'message': 'Book added successfully'}), 201
+book_model = api.model('Book', {
+    'id': fields.Integer(readOnly=True, description='The book unique identifier'),
+    'title': fields.String(required=True, description='The book title'),
+    'author': fields.String(required=True, description='The book author'),
+    'year_published': fields.Integer(description='The year the book was published'),
+    'isbn': fields.String(required=True, description='The ISBN of the book')
+})
 
-@bp.route('/books', methods=['GET'])
-def get_books():
-    books = Book.query.all()
-    return jsonify([{
-        'id': book.id,
-        'title': book.title,
-        'author': book.author,
-        'year_published': book.year_published,
-        'isbn': book.isbn
-    } for book in books])
+@api.route('/')
+class BookList(Resource):
+    @api.marshal_list_with(book_model)
+    def get(self):
+        """List all books"""
+        books = Book.query.all()
+        return books
 
-@bp.route('/books/<int:id>', methods=['GET'])
-def get_book(id):
-    book = Book.query.get_or_404(id)
-    return jsonify({
-        'id': book.id,
-        'title': book.title,
-        'author': book.author,
-        'year_published': book.year_published,
-        'isbn': book.isbn
-    })
+    @api.expect(book_model)
+    def post(self):
+        """Create a new book"""
+        data = api.payload
+        new_book = Book(title=data['title'], author=data['author'],
+                        year_published=data.get('year_published'), isbn=data['isbn'])
+        db.session.add(new_book)
+        db.session.commit()
+        return {'message': 'Book added successfully'}, 201
 
-@bp.route('/books/<int:id>', methods=['PUT'])
-def update_book(id):
-    book = Book.query.get_or_404(id)
-    data = request.get_json()
-    book.title = data.get('title', book.title)
-    book.author = data.get('author', book.author)
-    book.year_published = data.get('year_published', book.year_published)
-    book.isbn = data.get('isbn', book.isbn)
-    db.session.commit()
-    return jsonify({'message': 'Book updated successfully'})
+@api.route('/<int:id>')
+@api.response(404, 'Book not found')
+class BookItem(Resource):
+    @api.marshal_with(book_model)
+    def get(self, id):
+        """Fetch a book given its identifier"""
+        book = Book.query.get_or_404(id)
+        return book
 
-@bp.route('/books/<int:id>', methods=['DELETE'])
-def delete_book(id):
-    book = Book.query.get_or_404(id)
-    db.session.delete(book)
-    db.session.commit()
-    return jsonify({'message': 'Book deleted successfully'})
+    @api.expect(book_model)
+    def put(self, id):
+        """Update a book given its identifier"""
+        book = Book.query.get_or_404(id)
+        data = api.payload
+        book.title = data.get('title', book.title)
+        book.author = data.get('author', book.author)
+        book.year_published = data.get('year_published', book.year_published)
+        book.isbn = data.get('isbn', book.isbn)
+        db.session.commit()
+        return {'message': 'Book updated successfully'}
+
+    def delete(self, id):
+        """Delete a book given its identifier"""
+        book = Book.query.get_or_404(id)
+        db.session.delete(book)
+        db.session.commit()
+        return {'message': 'Book deleted successfully'}
