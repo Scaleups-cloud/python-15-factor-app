@@ -1,20 +1,17 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from config import config_by_name
+from flask_restx import Api
+from .routes import api as books_ns
 from .models import db
-from .routes import bp
-from .utils.database import init_db
+from config import config_by_name
 
 def create_app(config_name):
     app = Flask(__name__)
-
-    # Load configuration from the 'config' module
     app.config.from_object(config_by_name[config_name])
-
-    # Initialize and bind SQLAlchemy to the app
     db.init_app(app)
 
-    # Register the Blueprint for routes
-    app.register_blueprint(bp)
+    # Setup Flask-RESTx
+    api = Api(app, version='1.0', title='Book API', description='A simple Book API')
+    api.add_namespace(books_ns, path='/api/books')
 
     return app
