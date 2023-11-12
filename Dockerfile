@@ -1,11 +1,11 @@
-FROM python:3.10.13-slim-bullseye
+FROM python:3.10
 WORKDIR /usr/src/app
-
-COPY Pipfile Pipfile.lock ./
-RUN pip install --no-cache-dir pipenv && \
-    pipenv install --deploy --ignore-pipfile
-
 COPY . .
 
+RUN pip install pipenv
+RUN pipenv install --system --deploy
+
 EXPOSE 5000
-CMD ["pipenv", "run", "python", "./app/app.py"]
+ENV FLASK_CONFIG=development
+
+CMD ["python", "app.py"]
