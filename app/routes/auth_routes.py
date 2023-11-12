@@ -42,12 +42,7 @@ def generate_token(user):
             'iat': datetime.datetime.utcnow(),
             'sub': user.id
         }
-        temp = jwt.encode(
-                         payload,
-                         current_app.config.get('SECRET_KEY'),
-                         algorithm='HS256'
-                     )
-        print(jwt.decode(temp, current_app.config.get('SECRET_KEY'), algorithms=["HS256"]))
+
         # Create the JWT token
         return jwt.encode(
             payload,
