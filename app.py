@@ -6,9 +6,9 @@ from app.utils.app_metrics import setup_metrics
 
 
 load_dotenv()
-flask_env = os.getenv('FLASK_ENV', 'development')
+config_name = os.getenv('FLASK_CONFIG', 'development')
 
-app = create_app(flask_env)
+app = create_app(config_name)
 
 # Setup logger and metrics
 logger = setup_logger(__name__)
