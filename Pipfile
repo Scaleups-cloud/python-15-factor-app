@@ -10,6 +10,8 @@ psycopg2-binary = "*"
 python-dotenv = "*"
 flask-restx = "*"
 pytest = "*"
+python-json-logger = "*"
+prometheus-flask-exporter = "*"
 
 [dev-packages]
 

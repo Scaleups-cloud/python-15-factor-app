@@ -19,7 +19,7 @@ def create_app(config_name):
         }
     }
 
-    api = Api(app, authorizations=authorizations, security='Bearer Auth', version='1.0', title='My API', description='A simple API')
+    api = Api(app, authorizations=authorizations, doc='/swagger/', security='Bearer Auth', version='1.0', title='15 Factor Python App API', description='15 Factor Python App API')
     api.add_namespace(ns_auth)
     api.add_namespace(ns_books)
 

@@ -5,6 +5,9 @@ from flask_restx import Namespace, Resource, fields
 from werkzeug.security import generate_password_hash, check_password_hash
 from ..models import db, User, TokenBlacklist
 from ..utils.auth_decorators import token_required, admin_required, blacklist_token
+from ..utils.app_logger import setup_logger
+
+logger = setup_logger(__name__)
 
 authorizations = {
     'Bearer Auth': {
@@ -50,6 +53,7 @@ def generate_token(user):
             algorithm='HS256'
         )
     except Exception as e:
+        logger.error("Token generation failed", extra={"error": str(e)})
         return e
 
 @ns_auth.route('/signup')
@@ -58,12 +62,19 @@ class SignupUser(Resource):
     @ns_auth.marshal_with(token_model, code=201)
     def post(self):
         """Register a new user"""
-        data = ns_auth.payload
-        hashed_password = generate_password_hash(data['password'], method='sha256')
-        new_user = User(username=data['username'], password=hashed_password, is_admin=False)
-        db.session.add(new_user)
-        db.session.commit()
-        return {'token': generate_token(new_user)}, 201
+        try:
+            data = ns_auth.payload
+            hashed_password = generate_password_hash(data['password'], method='sha256')
+            new_user = User(username=data['username'], password=hashed_password, is_admin=False)
+            db.session.add(new_user)
+            db.session.commit()
+
+            logger.info("New user registered", extra={"username": data['username']})
+            return {'token': generate_token(new_user)}, 201
+
+        except Exception as e:
+            logger.error("Signup failed", extra={"error": str(e)})
+            raise e
 
 @ns_auth.route('/login')
 class LoginUser(Resource):
@@ -72,26 +83,39 @@ class LoginUser(Resource):
     @ns_auth.marshal_with(token_model, code=200)
     def post(self):
         """Authenticate a user and return a token"""
-        data = ns_auth.payload
-        user = User.query.filter_by(username=data['username']).first()
-        if not user or not check_password_hash(user.password, data['password']):
-            return {'message': 'Invalid username or password!'}, 401
-        token = generate_token(user)
-        return {'token': token}, 200
+        try:
+            data = ns_auth.payload
+            user = User.query.filter_by(username=data['username']).first()
+            if not user or not check_password_hash(user.password, data['password']):
+                logger.warning("Invalid login attempt", extra={"username": data['username']})
+                return {'message': 'Invalid username or password!'}, 401
+
+            token = generate_token(user)
+            logger.info("User logged in", extra={"username": data['username']})
+            return {'token': token}, 200
+
+        except Exception as e:
+            logger.error("Login failed", extra={"error": str(e)})
+            raise e
 
 @ns_auth.route('/logout')
 class LogoutUser(Resource):
     @token_required
     def post(self):
         """Logout a user by blacklisting their token"""
-        token = request.headers.get('Authorization')
-        if not token:
-            return {'message': 'Token is missing!'}, 403
+        try:
+            token = request.headers.get('Authorization')
+            if not token:
+                logger.warning("Logout attempt without token")
+                return {'message': 'Token is missing!'}, 403
 
-        success, message = blacklist_token(token)
-        if success is True:
-            return {'message': message}, 200
-        elif success is False:
-            return {'message': message}, 400
-        else:
-            return {'message': message}, 500
+            success, message = blacklist_token(token)
+            if success:
+                logger.info("User logged out", extra={"token": token})
+                return {'message': message}, 200
+            else:
+                logger.warning("Logout failed", extra={"message": message})
+                return {'message': message}, 400
+        except Exception as e:
+            logger.error("Logout error", extra={"error": str(e)})
+            return {'message': str(e)}, 500
